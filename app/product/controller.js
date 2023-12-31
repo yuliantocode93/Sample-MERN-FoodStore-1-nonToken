@@ -2,12 +2,33 @@ const fs = require("fs"); // Mengimpor modul 'fs' (File System) untuk operasi fi
 const config = require("../config"); // Mengimpor file konfigurasi dari direktori '../config'.
 const Product = require("./model"); // Mengimpor model 'Product' dari file './model'.
 const path = require("path"); // Mengimpor modul 'path' untuk manipulasi path file/direktori.
+const Category = require("../category/model");
+const Tag = require("../tag/model");
 
 //* POST a Data
 const store = async (req, res, next) => {
   // Fungsi untuk menyimpan data produk baru.
   try {
     let payload = req.body; // Mengambil data dari permintaan (request) HTTP.
+
+    if (payload.category) {
+      let category = await Category.findOne({ name: { $regex: payload.category, $options: "i" } });
+      if (category) {
+        payload = { ...payload, category: category._id };
+      } else {
+        delete payload.category;
+      }
+    }
+
+    if (payload.tags && payload.tags.length > 0) {
+      let tags = await Tag.find({ name: { $in: payload.tags } });
+      if (tags.length) {
+        payload.tags = tags.map((tag) => tag._id);
+      } else {
+        delete payload.tags;
+      }
+    }
+
     if (req.file) {
       // Jika ada file yang diunggah dalam permintaan.
       // Menyiapkan path dan nama file untuk disimpan.
@@ -71,6 +92,25 @@ const update = async (req, res, next) => {
   try {
     let payload = req.body; // Mengambil data dari permintaan (request) HTTP.
     let { id } = req.params; // Mengambil ID produk dari parameters request.
+
+    if (payload.category) {
+      let category = await Category.findOne({ name: { $regex: payload.category, $options: "i" } });
+      if (category) {
+        payload = { ...payload, category: category._id };
+      } else {
+        delete payload.category;
+      }
+    }
+
+    if (payload.tags && payload.tags.length > 0) {
+      let tags = await Tag.find({ name: { $in: payload.tags } });
+      if (tags.length) {
+        payload.tags = tags.map((tag) => tag._id);
+      } else {
+        delete payload.tags;
+      }
+    }
+
     let existingProduct = await Product.findById(id); // Mencari produk yang sudah ada berdasarkan ID.
 
     if (req.file) {
@@ -133,16 +173,47 @@ const update = async (req, res, next) => {
 };
 
 //* Get All
+//* GET: Index function to fetch products based on certain criteria
 const index = async (req, res, next) => {
-  // Fungsi untuk mendapatkan daftar semua produk.
   try {
-    let { skip = 0, limit = 100 } = req.query; // Mengambil parameter skip dan limit dari query.
-    // Mengambil daftar produk dari database dengan opsi skip dan limit.
-    let product = await Product.find().skip(parseInt(skip)).limit(parseInt(limit));
-    return res.json(product); // Mengembalikan respons JSON dengan daftar produk.
+    let { skip = 0, limit = 100, q = "", category = "", tags = [] } = req.query;
+
+    let criteria = {}; // Criteria object for filtering products
+
+    // Search by name (if 'q' parameter is provided)
+    if (q.length) {
+      criteria = {
+        ...criteria,
+        name: { $regex: new RegExp(`${q}`, "i") },
+      };
+    }
+
+    // Search by category (if 'category' parameter is provided)
+    if (category.length) {
+      let categoryResult = await Category.find({ name: { $regex: new RegExp(`${category}`, "i") } });
+      if (categoryResult.length > 0) {
+        criteria = { ...criteria, category: categoryResult[0]._id };
+      }
+    }
+
+    // Search by tags (if 'tags' parameter is provided)
+    if (tags.length) {
+      let tagsResult = await Tag.find({ name: { $in: tags } });
+      if (tagsResult.length > 0) {
+        criteria = { ...criteria, tags: { $in: tagsResult.map((tag) => tag._id) } };
+      }
+    }
+
+    // Get the total count of products
+    let count = await Product.find().countDocuments();
+
+    // Retrieve products based on criteria, applying pagination and populating category and tags fields
+    let products = await Product.find(criteria).skip(parseInt(skip)).limit(parseInt(limit)).populate("category").populate("tags");
+
+    return res.json({ data: products, count });
   } catch (err) {
-    // Menangani error yang terjadi.
-    next(err); // Lanjutkan ke middleware error handler.
+    // Handle errors
+    next(err);
   }
 };
 
