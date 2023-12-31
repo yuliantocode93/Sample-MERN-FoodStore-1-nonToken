@@ -33,11 +33,6 @@ const deliveryAddressSchema = new Schema(
       required: [true, "Nama alamat harus diisi"],
       maxLength: [255, "Panjang maksimal detail adalah 255 karakter"],
     },
-
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
   },
   { timestamps: true }
 );

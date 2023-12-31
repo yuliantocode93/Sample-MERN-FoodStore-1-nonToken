@@ -176,6 +176,7 @@ const update = async (req, res, next) => {
 //* GET: Index function to fetch products based on certain criteria
 const index = async (req, res, next) => {
   try {
+    // Filter
     let { skip = 0, limit = 100, q = "", category = "", tags = [] } = req.query;
 
     let criteria = {}; // Criteria object for filtering products
@@ -203,10 +204,11 @@ const index = async (req, res, next) => {
         criteria = { ...criteria, tags: { $in: tagsResult.map((tag) => tag._id) } };
       }
     }
-
+    // Count
     // Get the total count of products
     let count = await Product.find().countDocuments();
 
+    // Pagination
     // Retrieve products based on criteria, applying pagination and populating category and tags fields
     let products = await Product.find(criteria).skip(parseInt(skip)).limit(parseInt(limit)).populate("category").populate("tags");
 
