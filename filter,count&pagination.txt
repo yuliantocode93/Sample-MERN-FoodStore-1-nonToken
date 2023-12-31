@@ -1,0 +1,7 @@
+
+Filter, Count, & Pagination
+
+sample 1:
+GET localhost:3000/api/products?q=dag&category=Beef&tags[]=Dag
+sample 2:
+GET localhost:3000/api/products?tags[]=''
